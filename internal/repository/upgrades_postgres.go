@@ -48,3 +48,12 @@ func (r *UpgradesPostgres) CreateNewUpgrade(upgrade model.Upgrade) (int, error) 
 	}
 	return id, nil
 }
+
+func (r *UpgradesPostgres) GetOneUpgrade(upgradeID int) (model.Upgrade, error) {
+	var upgrade model.Upgrade
+	query := fmt.Sprintf("SELECT FROM %s WHERE id = $1", upgradesTable)
+	if err := r.db.Get(&upgrade, query, upgradeID); err != nil {
+		return model.Upgrade{}, err
+	}
+	return upgrade, nil
+}

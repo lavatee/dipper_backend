@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-uuid"
 	"github.com/lavatee/dipper_backend/internal/model"
@@ -43,6 +44,11 @@ func NewUsersService(repo *repository.Repository) *UsersService {
 func (s *UsersService) Login(user model.User) (model.User, error) {
 	user, err := s.repo.Users.GetUserByTelegramID(user.TelegramID)
 	if err == nil {
+		newEnergy, err := s.UpdateUserEnergy(user)
+		if err != nil {
+			return model.User{}, err
+		}
+		user.Energy += newEnergy
 		return user, nil
 	}
 	ref, err := uuid.GenerateUUID()
@@ -62,6 +68,16 @@ func (s *UsersService) Login(user model.User) (model.User, error) {
 	}
 	user, err = s.repo.Users.GetUserByTelegramID(user.TelegramID)
 	return user, err
+}
+
+func (s *UsersService) UpdateUserEnergy(user model.User) (int, error) {
+	thisUpdateTime := time.Now()
+	seconds := int(thisUpdateTime.Sub(user.LastEnergyUpdate).Seconds())
+	newEnergy := int(seconds / 10)
+	if err := s.repo.Users.UpdateUserEnergy(newEnergy, "+", user.TelegramID); err != nil {
+		return 0, err
+	}
+	return newEnergy, s.repo.Users.SetLastEnergyUpdate(user.TelegramID, thisUpdateTime)
 }
 
 func (s *UsersService) ImproveUserByCoins(user model.User, coinsAmount int) error {
@@ -95,4 +111,8 @@ func (s *UsersService) TapsBatch(telegramID string) error {
 		return err
 	}
 	return nil
+}
+
+func (s *UsersService) GetRefUsers(telegramID string) ([]model.User, error) {
+	return s.repo.Users.GetRefUsers(telegramID)
 }

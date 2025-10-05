@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/lavatee/dipper_backend/internal/model"
 )
@@ -12,6 +14,7 @@ type Users interface {
 	UpdateUserEnergy(energy int, action string, telegramID string) error
 	ImproveUser(addedLevel int, addedMaxEnergy int, addedCoinsPerTap int, addedPassiveIncome int, telegramID string) error
 	GetRefUsers(telegramID string) ([]model.User, error)
+	SetLastEnergyUpdate(telegramID string, lastUpdate time.Time) error
 }
 
 type Upgrades interface {
@@ -19,6 +22,7 @@ type Upgrades interface {
 	GetAllUpgrades() ([]model.Upgrade, error)
 	GetUserUpgrades(userID int) ([]model.Upgrade, error)
 	CreateNewUpgrade(upgrade model.Upgrade) (int, error)
+	GetOneUpgrade(upgradeID int) (model.Upgrade, error)
 }
 
 type Notifications interface {

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lavatee/dipper_backend/internal/model"
@@ -31,9 +32,26 @@ func (r *UsersPostgres) GetUserByTelegramID(telegramID string) (model.User, erro
 }
 
 func (r *UsersPostgres) UpdateUserBalance(coins int, action string, telegramID string) error { //action: "+" or "-"
-	query := fmt.Sprintf("UPDATE %s SET coins_balance = coins_balance %s $1 WHERE telegram_id = $2", usersTable, action)
-	_, err := r.db.Exec(query, coins, telegramID)
-	return err
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf("UPDATE %s SET coins_balance = coins_balance %s $1 WHERE telegram_id = $2 RETURNING coins_balance", usersTable, action)
+	row := tx.QueryRow(query, coins, telegramID)
+	var balance int
+	if err := row.Scan(&balance); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if balance < 0 {
+		tx.Rollback()
+		return fmt.Errorf("balance")
+	}
+	if err = tx.Commit(); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
 }
 
 func (r *UsersPostgres) UpdateUserEnergy(energy int, action string, telegramID string) error {
@@ -55,4 +73,10 @@ func (r *UsersPostgres) GetRefUsers(telegramID string) ([]model.User, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+func (r *UsersPostgres) SetLastEnergyUpdate(telegramID string, lastUpdate time.Time) error {
+	query := fmt.Sprintf("UPDATE %s SET last_energy_update = $1 WHERE telegram_id = $2", usersTable)
+	_, err := r.db.Exec(query, lastUpdate, telegramID)
+	return err
 }
