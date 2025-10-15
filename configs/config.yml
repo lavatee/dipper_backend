@@ -6,4 +6,4 @@ db:
   user: "postgres"
   password: "dipper"
   dbname: "postgres"
-  sslmode: "disabled"
+  sslmode: "disable"

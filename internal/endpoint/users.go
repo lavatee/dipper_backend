@@ -25,6 +25,7 @@ func (e *Endpoint) LogIn(c *gin.Context) {
 	user, err = e.services.Users.Login(user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }

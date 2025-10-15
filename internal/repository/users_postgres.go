@@ -55,7 +55,7 @@ func (r *UsersPostgres) UpdateUserBalance(coins int, action string, telegramID s
 }
 
 func (r *UsersPostgres) UpdateUserEnergy(energy int, action string, telegramID string) error {
-	query := fmt.Sprintf("UPDATE %s SET energy = energy %s $1 AND last_energy_update = CURRENT_TIMESTAMP WHERE telegram_id = $2", usersTable, action)
+	query := fmt.Sprintf("UPDATE %s SET energy = energy %s $1, last_energy_update = CURRENT_TIMESTAMP WHERE telegram_id = $2", usersTable, action)
 	_, err := r.db.Exec(query, energy, telegramID)
 	return err
 }

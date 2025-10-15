@@ -42,14 +42,14 @@ func NewUsersService(repo *repository.Repository) *UsersService {
 }
 
 func (s *UsersService) Login(user model.User) (model.User, error) {
-	user, err := s.repo.Users.GetUserByTelegramID(user.TelegramID)
+	userInfo, err := s.repo.Users.GetUserByTelegramID(user.TelegramID)
 	if err == nil {
-		newEnergy, err := s.UpdateUserEnergy(user)
+		newEnergy, err := s.UpdateUserEnergy(userInfo)
 		if err != nil {
 			return model.User{}, err
 		}
-		user.Energy += newEnergy
-		return user, nil
+		userInfo.Energy += newEnergy
+		return userInfo, nil
 	}
 	ref, err := uuid.GenerateUUID()
 	if err != nil {
@@ -72,12 +72,26 @@ func (s *UsersService) Login(user model.User) (model.User, error) {
 
 func (s *UsersService) UpdateUserEnergy(user model.User) (int, error) {
 	thisUpdateTime := time.Now()
-	seconds := int(thisUpdateTime.Sub(user.LastEnergyUpdate).Seconds())
-	newEnergy := int(seconds / 10)
-	if err := s.repo.Users.UpdateUserEnergy(newEnergy, "+", user.TelegramID); err != nil {
+	lastUpdate := user.LastEnergyUpdate
+	if lastUpdate.IsZero() {
+		lastUpdate = thisUpdateTime
+	}
+	seconds := int(time.Since(lastUpdate).Seconds())
+	restoredEnergy := int(seconds / 10)
+	if restoredEnergy <= 0 {
+		return 0, nil
+	}
+	newEnergy := user.Energy + restoredEnergy
+	if newEnergy > user.MaxEnergy {
+		restoredEnergy = user.MaxEnergy - user.Energy
+		if restoredEnergy <= 0 {
+			return 0, nil
+		}
+	}
+	if err := s.repo.Users.UpdateUserEnergy(restoredEnergy, "+", user.TelegramID); err != nil {
 		return 0, err
 	}
-	return newEnergy, s.repo.Users.SetLastEnergyUpdate(user.TelegramID, thisUpdateTime)
+	return restoredEnergy, s.repo.Users.SetLastEnergyUpdate(user.TelegramID, thisUpdateTime)
 }
 
 func (s *UsersService) ImproveUserByCoins(user model.User, coinsAmount int) error {
@@ -97,7 +111,7 @@ func (s *UsersService) TapsBatch(telegramID string) error {
 	if err != nil {
 		return err
 	}
-	coinsAmount := user.CoinsPerTap + batchSize
+	coinsAmount := user.CoinsPerTap * batchSize
 	if user.Energy < batchSize {
 		return fmt.Errorf("energy")
 	}

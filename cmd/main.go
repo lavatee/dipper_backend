@@ -3,12 +3,19 @@ package main
 import (
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"syscall"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	backend "github.com/lavatee/dipper_backend"
 	"github.com/lavatee/dipper_backend/internal/endpoint"
 	"github.com/lavatee/dipper_backend/internal/repository"
 	"github.com/lavatee/dipper_backend/internal/service"
+	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -28,6 +35,21 @@ func main() {
 	})
 	if err != nil {
 		logrus.Fatalf("DB opening error: %s", err.Error())
+	}
+	driver, err := postgres.WithInstance(db.DB, &postgres.Config{})
+	if err != nil {
+		logrus.Fatalf("Failed to create migrate driver: %s", err.Error())
+	}
+
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	migrationsPath := "file://" + strings.ReplaceAll(filepath.Join(dir, "../schema"), "\\", "/")
+	migrations, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
+	if err != nil {
+		logrus.Fatalf("Failed to create migrate instance: %s", err.Error())
+	}
+	if err = migrations.Up(); err != nil && err != migrate.ErrNoChange {
+		logrus.Fatalf("Migrations error: %s", err.Error())
 	}
 	repo := repository.NewRepository(db)
 	services := service.NewService(repo)

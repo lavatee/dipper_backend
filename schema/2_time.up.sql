@@ -1,0 +1,1 @@
+ALTER TABLE users ALTER COLUMN last_energy_update TYPE TIMESTAMPTZ;
